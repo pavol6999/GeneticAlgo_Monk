@@ -1,23 +1,22 @@
 from copy import copy, deepcopy
-from random import choices, randrange, random, randint, choice
+from random import choices, randrange, random, randint, choice, sample
 
 
 class Genome:
-    def __init__(self, length, zen_map):
-        self.length = length
-        self.genome = []
+    def __init__(self, gene_length, zen_map):
+        self.gene_length = gene_length
         self.own_map = deepcopy(zen_map)
         self.monk_stuck = False
         self.fitness_score = 0
-        self.generate_genome()
-        self.translate_genome_to_map()
-        self.possible_starting_positions = []
+        self.possible_starting_positions = self.get_all_positions()  # all possible starting points on the map
+        self.monk_starting_positions = []  # a subset of all possible starting points
+        self.moves = []  # on the map, my representation of genes
+        self.generate_genes()  # [ ( X, Y ), Move ]
 
-
-
-    def generate_genome(self):
-        self.genome = choices([1, 0], k=self.length)
-        self.translate_genome_to_map()
+    def generate_genes(self):
+        self.monk_starting_positions = [
+            self.possible_starting_positions.pop(randrange(len(self.possible_starting_positions))) for _ in
+            range(self.gene_length)]
         self.moves = choices(["UP", "DOWN", "LEFT", "RIGHT"], k=16)
 
     def fitness(self):
@@ -33,8 +32,12 @@ class Genome:
             return True
         return False
 
-    # TODO
     def fill_matrice_road(self, position, move_number, init_direction):
+
+        if self.own_map[position[1]][position[0]] != 0:
+            return
+
+        self.own_map[position[1]][position[0]] = move_number
 
         direction = 0
         i = 0
@@ -52,8 +55,8 @@ class Genome:
             i += 1
 
             if self.in_bounds(left) and self.in_bounds(down) and self.in_bounds(right) and self.in_bounds(up):
-                if self.own_map[left[1]][left[0]] != 0 and self.own_map[down[1]][down[0]] != 0 and self.own_map[right[1]][right[0]] != 0 and self.own_map[up[1]][up[0]] != 0:
-
+                if self.own_map[left[1]][left[0]] != 0 and self.own_map[down[1]][down[0]] != 0 and \
+                        self.own_map[right[1]][right[0]] != 0 and self.own_map[up[1]][up[0]] != 0:
                     self.monk_stuck = True
                     break
 
@@ -97,76 +100,72 @@ class Genome:
 
         return
 
-
-
-
+    # mutate function does not generate new starting positions but only swaps a position in monk_starting_positions with
+    # one from possible_starting_positions -> optimized
     def mutate(self, probability, mutations_num, probability_moves, moves_mutations_num):
         for i in range(mutations_num):
-            index = randrange(len(self.genome))
+            index_monk = randrange(len(self.monk_starting_positions))
+            index_all = randrange(len(self.possible_starting_positions))
+
             if random() < probability:
-                self.genome[index] = abs(self.genome[index] - 1)
+                self.monk_starting_positions[index_monk] = self.possible_starting_positions[index_all]
 
         for j in range(moves_mutations_num):
             index = randrange(len(self.moves))
             if random() < probability_moves:
                 self.moves[index] = choice(["LEFT", "DOWN", "RIGHT", "UP"])
 
+    # for every monk's position start raking the garden, if the monk is stuck -> end
+    def translate_genes_to_map(self):
+        move_number = 1
+        for starting_point in self.monk_starting_positions:
+            if self.monk_stuck:
+                break
+            if self.own_map[starting_point[0][1]][starting_point[0][0]] == 0:
+                self.fill_matrice_road(starting_point[0], move_number, starting_point[1])
+                move_number += 1
+
     # vyplnit cisla tahov do mapy pre dany gen
-    def translate_genome_to_map(self):
-        move_num = 1
-        genome_positions = []
+    def get_all_positions(self):
+
+        possible_positions = []
         for x in range(len(self.own_map[0])):
-            if self.genome[x]:
-                if self.own_map[0][x] == 0 :
-                    if not self.monk_stuck:
-                        self.own_map[0][x] = move_num
-                        self.fill_matrice_road((x, 0), move_num, "DOWN")
-                        move_num += 1
+            if self.own_map[0][x] != -1:
+                # self.fill_matrice_road((x, 0), move_num, "DOWN")
+                possible_positions.append([(x, 0), "DOWN"])
 
         for j in range(len(self.own_map) - 2):
-            if self.genome[j + len(self.own_map[0])]:
-                if self.own_map[j + 1][len(self.own_map[0]) - 1] == 0:
-                    if not self.monk_stuck:
-                        self.own_map[j + 1][len(self.own_map[0]) - 1] = move_num
-                        self.fill_matrice_road((len(self.own_map[0]) - 1, j + 1), move_num, "LEFT")
-                        move_num += 1
+            if self.own_map[j + 1][len(self.own_map[0]) - 1] != -1:
+                # self.fill_matrice_road((len(self.own_map[0]) - 1, j + 1), move_num, "LEFT")
+                possible_positions.append([(len(self.own_map[0]) - 1, j + 1), "LEFT"])
 
         for i in range(len(self.own_map[0])):
-            if self.genome[i + len(self.own_map[0]) - 1 + len(self.own_map) - 1]:
-                if self.own_map[len(self.own_map) - 1][len(self.own_map[0]) - 1 - i] == 0:
-                    if not self.monk_stuck:
-                        self.own_map[len(self.own_map) - 1][len(self.own_map[0]) - 1 - i] = move_num
-                        self.fill_matrice_road((len(self.own_map[0]) - 1 - i, len(self.own_map) - 1), move_num, "UP")
-                        move_num += 1
+            if self.own_map[len(self.own_map) - 1][len(self.own_map[0]) - 1 - i] != -1:
+                #    self.fill_matrice_road((len(self.own_map[0]) - 1 - i, len(self.own_map) - 1), move_num, "UP")
+                possible_positions.append([(len(self.own_map[0]) - 1 - i, len(self.own_map) - 1), "UP"])
 
         for k in range(len(self.own_map) - 2):
-            if self.genome[2 * (len(self.own_map[0]) - 1) + len(self.own_map) + k]:
-                if self.own_map[len(self.own_map) - 2 - k][0] == 0:
-                    if not self.monk_stuck:
-                        self.own_map[len(self.own_map) - 2 - k][0] = move_num
-                        self.fill_matrice_road((0, len(self.own_map) - 2 - k), move_num, "RIGHT")
-                        move_num += 1
-        print_map(self.own_map)
+            if self.own_map[len(self.own_map) - 2 - k][0] != -1:
+                #  self.fill_matrice_road((0, len(self.own_map) - 2 - k), move_num, "RIGHT")
+                possible_positions.append([(0, len(self.own_map) - 2 - k), "RIGHT"])
 
-        print("")
-
-
+        return possible_positions
 
 
 class Population:
     def __init__(self, zen_map, rocks_num):
-        self.genomes_num = len(zen_map) + len(zen_map[0]) + rocks_num
+        self.genes_len = len(zen_map) + len(zen_map[0]) + rocks_num
         self.genome_len = 2 * len(zen_map) + 2 * len(zen_map[0]) - 4
         self.own_map = deepcopy(zen_map)
         self.genomes = self.populate(deepcopy(self.own_map))
 
     def populate(self, own_map):
-        return [Genome(self.genome_len, own_map) for _ in range(self.genomes_num)]
+        return [Genome(self.genes_len, own_map) for _ in range(100)]
 
     # TODO
     def roullete_selection(self):
         weights = [genome.fitness_score for genome in self.genomes]
-        return choices(population=self.genomes, weights=[genome.fitness_score for genome in self.genomes] )
+        return choices(population=self.genomes, weights=[genome.fitness_score for genome in self.genomes])
 
     def crossover(self, mother_genome, father_genome):
         length = len(mother_genome.genome)
@@ -200,12 +199,10 @@ def print_map(zen_map):
     print("")
 
 
-# TODO
-def selection_func():
-    return
 
 
-#
+
+
 
 
 def main():
@@ -214,13 +211,15 @@ def main():
     population = Population(zen_map, number_of_rocks)
     i = 0
     for _ in population.genomes:
+
+        _.translate_genes_to_map()
         _.fitness_score = _.fitness()
         print(f"{i} Fitness score: {_.fitness_score}")
         i += 1
     population.genomes = sorted(population.genomes,
-                                key=lambda genomes: genomes.fitness_score ,
+                                key=lambda genomes: genomes.fitness_score,
                                 reverse=True)
-    parent= population.roullete_selection()
+    parent = population.roullete_selection()
     return
 
 
