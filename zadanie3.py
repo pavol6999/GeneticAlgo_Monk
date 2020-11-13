@@ -108,7 +108,9 @@ class Genome:
             index_all = randrange(len(self.possible_starting_positions))
 
             if random() < probability:
-                self.monk_starting_positions[index_monk] = self.possible_starting_positions[index_all]
+
+                self.monk_starting_positions[index_monk], self.possible_starting_positions[index_all] = deepcopy(self.possible_starting_positions[index_all]), deepcopy(self.monk_starting_positions[index_monk])
+
 
         for j in range(moves_mutations_num):
             index = randrange(len(self.moves))
@@ -124,6 +126,7 @@ class Genome:
             if self.own_map[starting_point[0][1]][starting_point[0][0]] == 0:
                 self.fill_matrice_road(starting_point[0], move_number, starting_point[1])
                 move_number += 1
+
 
     # vyplnit cisla tahov do mapy pre dany gen
     def get_all_positions(self):
@@ -157,18 +160,32 @@ class Population:
         self.genes_len = len(zen_map) + len(zen_map[0]) + rocks_num
         self.genome_len = 2 * len(zen_map) + 2 * len(zen_map[0]) - 4
         self.own_map = deepcopy(zen_map)
-        self.genomes = self.populate(deepcopy(self.own_map))
+        self.genomes = []
 
-    def populate(self, own_map):
-        return [Genome(self.genes_len, own_map) for _ in range(100)]
+    def fitness_all(self):
+        for monk in self.genomes:
+            monk.fitness_score = monk.fitness()
+
+    def setup_monks(self):
+        for monk in self.genomes:
+            monk.translate_genes_to_map()
+
+    def clear_monks(self):
+        for monk in self.genomes:
+            monk.own_map = deepcopy(self.own_map)
+            monk.fitness_score = 0
+            monk.monk_stuck = False
+
+    def populate(self, own_map, num):
+        self.genomes = [Genome(self.genes_len, own_map) for _ in range(num)]
 
     # TODO
     def roullete_selection(self):
         weights = [genome.fitness_score for genome in self.genomes]
-        return choices(population=self.genomes, weights=[genome.fitness_score for genome in self.genomes])
+        return choices(population=self.genomes, weights=weights, k=2)
 
     def crossover(self, mother_genome, father_genome):
-        length = len(mother_genome.genome)
+        length = len(mother_genome)
         index = randint(1, length - 1)
         return mother_genome[0:index] + father_genome[index:], father_genome[0:index] + mother_genome[index:]
 
@@ -199,27 +216,65 @@ def print_map(zen_map):
     print("")
 
 
+def evolution(
+        fitness_limit,
+        generation_limit,
+        zen_map,
+        number_of_rocks,
+):
+    population_monks = Population(zen_map, number_of_rocks)
+
+    population_monks.populate(zen_map, 28)
+
+    for i in range(generation_limit):
+        next_gen=[]
+        if i == 200:
+            print("")
+        population_monks.setup_monks()
+        population_monks.fitness_all()
+
+        population_monks.genomes = sorted(population_monks.genomes,
+                                          key=lambda genomes: genomes.fitness_score,
+                                          reverse=True)
+
+        next_gen = deepcopy(population_monks.genomes[0:2])
+        trigger = 0
+
+        print(f"Generacia {i}: {population_monks.genomes[0].fitness_score}")
+        if population_monks.genomes[0].fitness_score >= 111:
+
+            trigger = 1
+
+        for j in range(int(len(population_monks.genomes) / 2) - 1):
+            subject_1, subject_2 = population_monks.roullete_selection()
+            subject_1.monk_starting_positions, subject_2.monk_starting_positions = population_monks.crossover(
+                subject_1.monk_starting_positions,
+                subject_2.monk_starting_positions)
+
+            subject_1.mutate(0.5, 28, 0.5, 28)
+            subject_2.mutate(0.5, 28, 0.5, 28)
+
+            next_gen.append(deepcopy(subject_1))
+            next_gen.append(deepcopy(subject_2))
 
 
+        population_monks.genomes = deepcopy(next_gen)
+        if trigger == 1:
+            print("")
+        population_monks.clear_monks()
 
+    population_monks.genomes = sorted(population_monks.genomes,
+                                      key=lambda genomes: genomes.fitness_score,
+                                      reverse=True)
 
+    print("")
 
 
 def main():
     zen_map, number_of_rocks = make_default_map()
+    evolution(100,4000, zen_map, number_of_rocks)
+    population = 0
 
-    population = Population(zen_map, number_of_rocks)
-    i = 0
-    for _ in population.genomes:
-
-        _.translate_genes_to_map()
-        _.fitness_score = _.fitness()
-        print(f"{i} Fitness score: {_.fitness_score}")
-        i += 1
-    population.genomes = sorted(population.genomes,
-                                key=lambda genomes: genomes.fitness_score,
-                                reverse=True)
-    parent = population.roullete_selection()
     return
 
 
