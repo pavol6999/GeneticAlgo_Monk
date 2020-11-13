@@ -1,23 +1,36 @@
 from copy import copy, deepcopy
+
 from random import choices, randrange, random, randint, choice, sample
 
 
 class Genome:
-    def __init__(self, gene_length, zen_map):
+    def __init__(self, gene_length, zen_map, new):
         self.gene_length = gene_length
-        self.own_map = deepcopy(zen_map)
+        self.own_map = [list(x) for x in zen_map]
         self.monk_stuck = False
         self.fitness_score = 0
         self.possible_starting_positions = self.get_all_positions()  # all possible starting points on the map
         self.monk_starting_positions = []  # a subset of all possible starting points
         self.moves = []  # on the map, my representation of genes
-        self.generate_genes()  # [ ( X, Y ), Move ]
+        if new:
+            self.generate_starting_positions()  # [ ( X, Y ), Move ]
+        self.generate_moves()
 
-    def generate_genes(self):
+
+
+    def generate_moves(self):
+        self.moves = choices(["UP", "DOWN", "LEFT", "RIGHT"], k=16)
+        self.moves.append("LEFT")
+        self.moves.append("RIGHT")
+        self.moves.append("UP")
+        self.moves.append("DOWN")
+
+    def generate_starting_positions(self):
         self.monk_starting_positions = [
             self.possible_starting_positions.pop(randrange(len(self.possible_starting_positions))) for _ in
             range(self.gene_length)]
-        self.moves = choices(["UP", "DOWN", "LEFT", "RIGHT"], k=16)
+
+
 
     def fitness(self):
         visited = 0
@@ -41,13 +54,12 @@ class Genome:
 
         direction = 0
         i = 0
-        self.moves.append("LEFT")
-        self.moves.append("RIGHT")
-        self.moves.append("UP")
-        self.moves.append("DOWN")
+
 
         move = init_direction
         while True:
+            if i == 10000:
+                print("")
             down = (position[0], position[1] + 1)
             up = (position[0], position[1] - 1)
             left = (position[0] - 1, position[1])
@@ -100,6 +112,9 @@ class Genome:
 
         return
 
+
+
+
     # mutate function does not generate new starting positions but only swaps a position in monk_starting_positions with
     # one from possible_starting_positions -> optimized
     def mutate(self, probability, mutations_num, probability_moves, moves_mutations_num):
@@ -113,7 +128,7 @@ class Genome:
 
 
         for j in range(moves_mutations_num):
-            index = randrange(len(self.moves))
+            index = randrange(len(self.moves)-4)
             if random() < probability_moves:
                 self.moves[index] = choice(["LEFT", "DOWN", "RIGHT", "UP"])
 
@@ -159,7 +174,7 @@ class Population:
     def __init__(self, zen_map, rocks_num):
         self.genes_len = len(zen_map) + len(zen_map[0]) + rocks_num
         self.genome_len = 2 * len(zen_map) + 2 * len(zen_map[0]) - 4
-        self.own_map = deepcopy(zen_map)
+        self.own_map = [list(x) for x in zen_map]
         self.genomes = []
 
     def fitness_all(self):
@@ -172,14 +187,14 @@ class Population:
 
     def clear_monks(self):
         for monk in self.genomes:
-            monk.own_map = deepcopy(self.own_map)
+            monk.own_map = [list(x) for x in self.own_map]
             monk.fitness_score = 0
             monk.monk_stuck = False
 
     def populate(self, own_map, num):
-        self.genomes = [Genome(self.genes_len, own_map) for _ in range(num)]
+        self.genomes = [Genome(self.genes_len, own_map, True) for _ in range(num)]
 
-    # TODO
+
     def roullete_selection(self):
         weights = [genome.fitness_score for genome in self.genomes]
         return choices(population=self.genomes, weights=weights, k=2)
@@ -216,6 +231,27 @@ def print_map(zen_map):
     print("")
 
 
+def new_population(population_monks):
+
+    next_generation = [population_monks.genomes[0], population_monks.genomes[1]]
+
+    for j in range(int(len(population_monks.genomes) / 2) - 1 ):
+        parent_1, parent_2 = population_monks.roullete_selection()
+
+        Child1 = Genome(population_monks.genes_len, population_monks.own_map, False)
+        Child2 = Genome(population_monks.genes_len, population_monks.own_map, False)
+
+        Child1.monk_starting_positions, Child2.monk_starting_positions = population_monks.crossover(
+            parent_1.monk_starting_positions,
+            parent_2.monk_starting_positions)
+        Child1.mutate(0.5, 8, 0.5, 8)
+        Child2.mutate(0.5, 8, 0.5, 8)
+
+        next_generation.append(Child1)
+        next_generation.append(Child2)
+
+    return next_generation
+
 def evolution(
         fitness_limit,
         generation_limit,
@@ -237,30 +273,18 @@ def evolution(
                                           key=lambda genomes: genomes.fitness_score,
                                           reverse=True)
 
-        next_gen = deepcopy(population_monks.genomes[0:2])
-        trigger = 0
 
+
+        if population_monks.genomes[0].fitness_score == 114:
+            print_map(population_monks.genomes[0].own_map)
+            break
         print(f"Generacia {i}: {population_monks.genomes[0].fitness_score}")
-        if population_monks.genomes[0].fitness_score >= 111:
-
-            trigger = 1
-
-        for j in range(int(len(population_monks.genomes) / 2) - 1):
-            subject_1, subject_2 = population_monks.roullete_selection()
-            subject_1.monk_starting_positions, subject_2.monk_starting_positions = population_monks.crossover(
-                subject_1.monk_starting_positions,
-                subject_2.monk_starting_positions)
-
-            subject_1.mutate(0.5, 28, 0.5, 28)
-            subject_2.mutate(0.5, 28, 0.5, 28)
-
-            next_gen.append(deepcopy(subject_1))
-            next_gen.append(deepcopy(subject_2))
 
 
-        population_monks.genomes = deepcopy(next_gen)
-        if trigger == 1:
-            print("")
+
+
+        population_monks.genomes = new_population(population_monks)
+
         population_monks.clear_monks()
 
     population_monks.genomes = sorted(population_monks.genomes,
