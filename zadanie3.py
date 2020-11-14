@@ -196,8 +196,27 @@ class Population:
 
 
     def roullete_selection(self):
-        weights = [genome.fitness_score for genome in self.genomes]
-        return choices(population=self.genomes, weights=weights, k=2)
+        return choices(population=self.genomes, weights=[genome.fitness_score for genome in self.genomes], k=2)
+
+    def tournament_selection(self, number_of_contestants):
+        best_fitness = 0
+        best_monk = None
+        parents = []
+        for j in range(2):
+            for i in range(number_of_contestants):
+                index = randrange(0,len(self.genomes))
+
+                if self.genomes[index].fitness_score > best_fitness:
+                    best_fitness = self.genomes[index].fitness_score
+                    best_monk = self.genomes[index]
+            parents.append(best_monk)
+            best_fitness = 0
+
+        return parents
+
+
+
+
 
     def crossover(self, mother_genome, father_genome):
         length = len(mother_genome)
@@ -218,6 +237,9 @@ def make_random_map(size_x, size_y, small_rocks, big_rocks):
     return
 
 
+
+
+
 def print_map(zen_map):
     for i in range(len(zen_map)):
         for j in range(len(zen_map[0])):
@@ -236,7 +258,8 @@ def new_population(population_monks):
     next_generation = [population_monks.genomes[0], population_monks.genomes[1]]
 
     for j in range(int(len(population_monks.genomes) / 2) - 1 ):
-        parent_1, parent_2 = population_monks.roullete_selection()
+        #  parent_1, parent_2 = population_monks.roullete_selection()
+        parent_1, parent_2 = population_monks.tournament_selection(3)
 
         Child1 = Genome(population_monks.genes_len, population_monks.own_map, False)
         Child2 = Genome(population_monks.genes_len, population_monks.own_map, False)
@@ -260,7 +283,7 @@ def evolution(
 ):
     population_monks = Population(zen_map, number_of_rocks)
 
-    population_monks.populate(zen_map, 28)
+    population_monks.populate(zen_map, 100)
 
     for i in range(generation_limit):
         next_gen=[]
@@ -273,12 +296,11 @@ def evolution(
                                           key=lambda genomes: genomes.fitness_score,
                                           reverse=True)
 
-
+        print(f"Generacia {i}: {population_monks.genomes[0].fitness_score}")
 
         if population_monks.genomes[0].fitness_score == 114:
             print_map(population_monks.genomes[0].own_map)
             break
-        print(f"Generacia {i}: {population_monks.genomes[0].fitness_score}")
 
 
 
