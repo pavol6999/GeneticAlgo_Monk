@@ -1,6 +1,6 @@
+from random import choices, randrange, random, randint, choice, sample
 
 from colored import bg, fg, attr
-from random import choices, randrange, random, randint, choice, sample
 
 
 # trieda Monk predstavuje mnícha, ktorý hrabe záhradu
@@ -17,14 +17,12 @@ class Monk:
             self.generate_starting_positions()  # [ ( X, Y ), Move ]
         self.generate_moves()
 
-
     def generate_moves(self):
         self.moves = choices(["UP", "DOWN", "LEFT", "RIGHT"], k=6)
         self.moves.append("LEFT")
         self.moves.append("RIGHT")
         self.moves.append("UP")
         self.moves.append("DOWN")
-
 
     def generate_starting_positions(self):
 
@@ -43,7 +41,7 @@ class Monk:
         visited = 0
         for i in range(len(self.own_map)):
             for j in range(len(self.own_map[0])):
-                if self.own_map[i][j] > 0 :
+                if self.own_map[i][j] > 0:
                     visited += 1
         return visited
 
@@ -52,7 +50,6 @@ class Monk:
         if 0 <= position[0] < (len(self.own_map[0])) and 0 <= position[1] < (len(self.own_map)):
             return True
         return False
-
 
     # hlavna funkcia pre pohyb mnicha, ak je startovacia pozicia kamen, return
     def fill_matrice_road(self, position, move_number, init_direction):
@@ -77,9 +74,6 @@ class Monk:
             right = (position[0] + 1, position[1])
             i += 1
 
-
-
-
             # pohyb do lava
             if move == "LEFT":
                 if not self.in_bounds(left):
@@ -88,7 +82,6 @@ class Monk:
                     self.own_map[left[1]][left[0]] = move_number
                     position = left
                     continue
-
 
             # pohyb hore
             if move == "UP":
@@ -140,9 +133,10 @@ class Monk:
             index_all = randrange(len(self.possible_starting_positions))
 
             if random() < probability:
-                self.monk_starting_positions[i], self.possible_starting_positions[index_all] =self.possible_starting_positions[index_all], self.monk_starting_positions[i]
+                self.monk_starting_positions[i], self.possible_starting_positions[index_all] = \
+                    self.possible_starting_positions[index_all], self.monk_starting_positions[i]
 
-        for j in range(len(self.moves)-4):
+        for j in range(len(self.moves) - 4):
             index = randrange(len(self.moves) - 4)
             if random() < probability_moves:
                 self.moves[index] = choice(["LEFT", "DOWN", "RIGHT", "UP"])
@@ -187,14 +181,14 @@ class Monk:
         possible_positions.append([(0, len(self.own_map) - 1), "UP"])
         return possible_positions
 
-#trieda ktora predstavuje celu populaciu mnichov
+
+# trieda ktora predstavuje celu populaciu mnichov
 class Population:
     def __init__(self, zen_map, rocks_num):
-        self.genes_len = len(zen_map) + len(zen_map[0]) + rocks_num         # pocet genov v kazdom mnichovy
-        self.own_map = [list(x) for x in zen_map]                           # kopia mapy
-        self.genomes = []                                                   # samostatny list mnichov
-        self.rocks = rocks_num                                              # pocet kamenov na mape
-
+        self.genes_len = len(zen_map) + len(zen_map[0]) + rocks_num  # pocet genov v kazdom mnichovy
+        self.own_map = [list(x) for x in zen_map]  # kopia mapy
+        self.genomes = []  # samostatny list mnichov
+        self.rocks = rocks_num  # pocet kamenov na mape
 
     # funkcia, ktora zavola fitness funkciu pre kazdeho mnicha
     def fitness_all(self):
@@ -223,12 +217,11 @@ class Population:
 
     # selekcia rodicov podla turnaja n mnichov
     def tournament_selection(self, number_of_contestants):
-        best_fitness = 0
-        best_monk = None
+
         parents = []
         for i in range(2):
             monks = sample(population=self.genomes, k=number_of_contestants)
-            monks_sorted = sorted(monks,key= lambda monks: monks.fitness_score, reverse=True)
+            monks_sorted = sorted(monks, key=lambda monks: monks.fitness_score, reverse=True)
             parents.append(monks_sorted[0])
 
         # dole je prvá myšlienka turnaja
@@ -251,6 +244,7 @@ class Population:
         index = randint(1, length - 1)
         return mother_genome[0:index] + father_genome[index:], father_genome[0:index] + mother_genome[index:]
 
+
 # vygeneruj defaultnu mapu, ktora bola uvedena v zadani
 def make_default_map():
     rock_pos = [(5, 1), (1, 2), (4, 3), (2, 4), (8, 6), (9, 6)]
@@ -262,16 +256,17 @@ def make_default_map():
 
 # vygeneruj mapu z textoveho suboru
 def make_map_file():
-    file = open("mapa.txt","r")
+    file = open("mapa.txt", "r")
     zen_map = []
     rocks = 0
     for line in file:
         zen_map.append([int(n) for n in line.split()])
     for y in range(len(zen_map)):
         for x in range(len(zen_map[0])):
-            if zen_map[y][x]==-1:
-                rocks+=1
+            if zen_map[y][x] == -1:
+                rocks += 1
     return zen_map, rocks
+
 
 # vypis mapy farebne pomocou kniznice colored
 def print_map(zen_map):
@@ -292,13 +287,13 @@ def print_map(zen_map):
         print("")
     print("")
 
+
 # vytvorenie dalsej generacie mnichov
 def new_population(population_monks, prob_positions, prob_moves, selection_func):
-
-    #elitizmus
+    # elitizmus
     next_generation = [population_monks.genomes[0], population_monks.genomes[1]]
 
-    #pre kazdych dvoch rodicov popar
+    # pre kazdych dvoch rodicov popar
     for j in range(int(len(population_monks.genomes) / 2) - 1):
         if selection_func == "r":
             parent_1, parent_2 = population_monks.roullete_selection()
@@ -309,12 +304,11 @@ def new_population(population_monks, prob_positions, prob_moves, selection_func)
         Child1 = Monk(population_monks.genes_len, population_monks.own_map, False)
         Child2 = Monk(population_monks.genes_len, population_monks.own_map, False)
 
-
         # single point crossover
         Child1.monk_starting_positions, Child2.monk_starting_positions = population_monks.crossover(
             parent_1.monk_starting_positions,
             parent_2.monk_starting_positions)
-        Child1.moves, Child2.moves = population_monks.crossover(parent_1.moves,parent_2.moves)
+        Child1.moves, Child2.moves = population_monks.crossover(parent_1.moves, parent_2.moves)
 
         # mutacia deti
         Child1.mutate(prob_positions, prob_moves)
@@ -325,6 +319,7 @@ def new_population(population_monks, prob_positions, prob_moves, selection_func)
         next_generation.append(Child2)
 
     return next_generation
+
 
 # hlavna funkcia, evolucia mnichov
 def evolution(
@@ -342,7 +337,6 @@ def evolution(
     # vytvorenie mnichov v populacii
     population_monks.populate(zen_map, num_monks)
 
-
     # po maximalnu generaciu
     for i in range(generation_limit):
 
@@ -350,21 +344,17 @@ def evolution(
         population_monks.setup_monks()
         population_monks.fitness_all()
 
-
         # zorad populaciu mnichvo zostupne
         population_monks.genomes = sorted(population_monks.genomes,
                                           key=lambda genomes: genomes.fitness_score,
                                           reverse=True)
 
-
         print(f"Generacia {i}.: {population_monks.genomes[0].fitness_score}")
 
         # ak je mnich, ktory nasiel cestu zastav a vypis mapu mnicha
         if population_monks.genomes[0].fitness_score == len(zen_map) * len(zen_map[0]) - population_monks.rocks:
-
             print_map(population_monks.genomes[0].own_map)
             break
-
 
         population_monks.genomes = new_population(population_monks, prob_positions, prob_moves, selection_func)
 
@@ -383,11 +373,10 @@ def input_info():
     prob_positions = float(input("Zadaj pravdepodobnost mutacie pozicii mnicha (0 - 1): "))
     prob_moves = float(input("Zadaj pravdepodobnost mutacie pohybov mnicha (0 - 1): "))
     selection_func = input("Selektivna funkcia (t - turnaj/ r - ruleta): ")
-    return num_monks,prob_positions,prob_moves, selection_func
+    return num_monks, prob_positions, prob_moves, selection_func
+
 
 def main():
-
-
     controller = 0
     while controller != 3:
         print("1 - defaultna mapa zo zadania\n2 - mapa zo suboru\n3 - koniec")
@@ -402,10 +391,8 @@ def main():
             num_monks, prob_positions, prob_moves, selection_func = input_info()
             evolution(num_monks, 4000, zen_map, number_of_rocks, prob_positions, prob_moves, selection_func)
 
-
     return
 
 
 if __name__ == '__main__':
     main()
-
