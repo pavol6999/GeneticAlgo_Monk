@@ -298,7 +298,7 @@ def new_population(population_monks, prob_positions, prob_moves, selection_func)
         if selection_func == "r":
             parent_1, parent_2 = population_monks.roullete_selection()
         else:
-            parent_1, parent_2 = population_monks.tournament_selection(3)
+            parent_1, parent_2 = population_monks.tournament_selection(5)
 
         # vytvorenie novych objektov ako dieta1,dieta2
         Child1 = Monk(population_monks.genes_len, population_monks.own_map, False)
@@ -329,8 +329,11 @@ def evolution(
         number_of_rocks,
         prob_positions,
         prob_moves,
-        selection_func
+        selection_func,
+        tester_enabled
 ):
+    generation_data = []
+
     # vytvorenie novej prazdnej populacie
     population_monks = Population(zen_map, number_of_rocks)
 
@@ -348,13 +351,19 @@ def evolution(
         population_monks.genomes = sorted(population_monks.genomes,
                                           key=lambda genomes: genomes.fitness_score,
                                           reverse=True)
+        if tester_enabled == False:
+            print(f"Generacia {i}. maximalny fitness: {population_monks.genomes[0].fitness_score}")
 
-        print(f"Generacia {i}.: {population_monks.genomes[0].fitness_score}")
-
+        # data o generacii [čislo generacie, najlepsi fitness, median, najhorsi fitness],
+        if tester_enabled:
+            generation_data.append([i,population_monks.genomes[0].fitness_score,
+                                population_monks.genomes[len(population_monks.genomes) // 2].fitness_score,
+                                population_monks.genomes[len(population_monks.genomes)-1].fitness_score])
         # ak je mnich, ktory nasiel cestu zastav a vypis mapu mnicha
         if population_monks.genomes[0].fitness_score == len(zen_map) * len(zen_map[0]) - population_monks.rocks:
-            print_map(population_monks.genomes[0].own_map)
-            break
+            if tester_enabled == False:
+                print_map(population_monks.genomes[0].own_map)
+            return i, generation_data  # vrat cislo generacie
 
         population_monks.genomes = new_population(population_monks, prob_positions, prob_moves, selection_func)
 
@@ -365,7 +374,7 @@ def evolution(
                                       key=lambda genomes: genomes.fitness_score,
                                       reverse=True)
 
-    print("")
+    return 0, generation_data
 
 
 def input_info():
@@ -381,15 +390,24 @@ def main():
     while controller != 3:
         print("1 - defaultna mapa zo zadania\n2 - mapa zo suboru\n3 - koniec")
         controller = int(input("Zadaj vyber: "))
+
+
+        # vyber defualtnej mapy
         if controller == 1:
             zen_map, number_of_rocks = make_default_map()
             num_monks, prob_positions, prob_moves, selection_func = input_info()
-            evolution(num_monks, 4000, zen_map, number_of_rocks, prob_positions, prob_moves, selection_func)
+            gen_number = evolution(num_monks, 4000, zen_map, number_of_rocks, prob_positions, prob_moves,
+                                   selection_func, False)[0]
+            print(f"Riesenie sa podarilo najst v {gen_number}. generacii\n")
 
+
+        # vyber mapy zo suboru
         if controller == 2:
             zen_map, number_of_rocks = make_map_file()
             num_monks, prob_positions, prob_moves, selection_func = input_info()
-            evolution(num_monks, 4000, zen_map, number_of_rocks, prob_positions, prob_moves, selection_func)
+            gen_number = evolution(num_monks, 4000, zen_map, number_of_rocks, prob_positions, prob_moves,
+                                   selection_func, False)[0]
+            print(f"Riesenie sa podarilo najst v {gen_number}. generacii\n")
 
     return
 
